@@ -1,0 +1,22 @@
+Package: rayplot
+Type: Package
+Title: Toy Interactive Plotting with raylib
+Version: 0.0.1
+Authors@R: person("Konrad", "Krämer", email = "konrad_kraemer@yahoo.de", role = c("aut", "cre"))
+Description: A toy package that opens a raylib window from R and draws an
+    interactive scatter plot with mouse pan and scroll zoom. The render loop
+    is driven cooperatively from R's event loop via 'later', so the R console
+    stays usable while the window is open. Not production ready; a playground
+    for wiring raylib into R.
+License: GPL-3
+Encoding: UTF-8
+Imports: later, ggplot2, grDevices, stats, jsonlite, utils
+Suggests: shiny, htmltools
+SystemRequirements: A C toolchain and OpenGL + X11 development headers
+        on Linux (e.g. libgl1-mesa-dev, xorg-dev). raylib itself is
+        vendored in src/raylib (raylib 5.5, zlib licence) and built
+        with the package; no system raylib install is needed.
+NeedsCompilation: yes
+Packaged: 2026-09-09 10:20:53 UTC; konrad
+Author: Konrad Krämer [aut, cre]
+Maintainer: Konrad Krämer <konrad_kraemer@yahoo.de>

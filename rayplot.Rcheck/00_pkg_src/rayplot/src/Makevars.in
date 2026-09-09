@@ -1,0 +1,35 @@
+# Generated from Makevars.in by ./configure -- do not edit the generated file.
+#
+# rayplot builds a vendored copy of raylib 5.5 (src/raylib/) into the package,
+# so there is no external raylib dependency. Audio (raudio.c / miniaudio) is
+# intentionally not compiled; see src/raylib/config.h for the trimmed feature set.
+#
+# Tested: Linux (X11). configure also emits a macOS branch following raylib's
+# own build flags, which is not exercised here -- issues / PRs welcome.
+
+RAYLIB = raylib
+
+PKG_CPPFLAGS = -I. -I2D -I3D -I$(RAYLIB) -I$(RAYLIB)/external/glfw/include \
+               -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 @GLFW_DEF@
+
+PKG_LIBS = @PKG_LIBS@
+
+OBJECTS = init.o \
+  2D/rayplot_2D.o 2D/helper_2D.o 2D/layers_2D.o \
+  2D/lifecycle_2D.o 2D/view_2D.o 2D/text_2D.o \
+  3D/rayplot_3D.o \
+  $(RAYLIB)/rcore.o \
+  $(RAYLIB)/rshapes.o \
+  $(RAYLIB)/rtextures.o \
+  $(RAYLIB)/rtext.o \
+  $(RAYLIB)/rmodels.o \
+  $(RAYLIB)/utils.o \
+  $(RAYLIB)/rglfw.o
+
+# Keep $(SHLIB) as the default target -- must precede the explicit rule below.
+all: $(SHLIB)
+
+# GLFW's Cocoa backend is Objective-C, so on macOS rglfw.c needs -x objective-c;
+# @GLFW_EXTRA@ is empty on other systems, matching the implicit rule.
+$(RAYLIB)/rglfw.o: $(RAYLIB)/rglfw.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) @GLFW_EXTRA@ -c $< -o $@

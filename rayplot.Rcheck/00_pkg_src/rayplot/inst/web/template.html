@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@TITLE@@</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f8f9fb;
+               font: 13px/1.4 system-ui, sans-serif; color: #58606e; }
+  #wrap { display: flex; flex-direction: column; align-items: center;
+          justify-content: center; min-height: 100%; gap: 8px; padding: 12px; box-sizing: border-box; }
+  /* The canvas CSS size MUST equal its drawing-buffer size (width/height attrs),
+     or raylib's mouse coordinates are scaled wrong. flex:none + explicit px
+     (set from JS) keeps the layout from stretching it. */
+  #canvas { background: #f8f9fb; border: 1px solid #e4e7ed; border-radius: 6px;
+            display: block; outline: none; flex: none; align-self: center; }
+  #status { min-height: 1.2em; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="canvas" width="@@WIDTH@@" height="@@HEIGHT@@" tabindex="0"></canvas>
+  <div id="status">loading renderer…</div>
+</div>
+
+<script>
+  // Layer spec serialised by rayplot_serialize() in R, base64-encoded.
+  var RAYPLOT_SPEC_B64 = "@@SPEC_B64@@";
+
+  function b64ToBytes(b64) {
+    var bin = atob(b64), n = bin.length, out = new Uint8Array(n);
+    for (var i = 0; i < n; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  var statusEl = document.getElementById("status");
+  var Module = {
+    canvas: (function () {
+      var c = document.getElementById("canvas");
+      // pin CSS size to the drawing-buffer size so mouse coords line up
+      c.style.width  = c.getAttribute("width") + "px";
+      c.style.height = c.getAttribute("height") + "px";
+      // keep WebGL context loss from silently killing the plot
+      c.addEventListener("webglcontextlost", function (e) {
+        e.preventDefault(); statusEl.textContent = "WebGL context lost — reload the page";
+      }, false);
+      return c;
+    })(),
+    print:    function (t) { console.log(t); },
+    printErr: function (t) { console.error(t); },
+    setStatus: function (t) { if (t) statusEl.textContent = t; },
+    onRuntimeInitialized: function () {
+      try {
+        var bytes = b64ToBytes(RAYPLOT_SPEC_B64);
+        var ptr = Module._malloc(bytes.length);
+        Module.HEAPU8.set(bytes, ptr);
+        Module.ccall("rayplot_web_start", null, ["number", "number"], [ptr, bytes.length]);
+        statusEl.textContent = "drag: pan · wheel: zoom · hover: tooltip";
+        Module.canvas.focus();
+        var c = Module.canvas, r = c.getBoundingClientRect();
+        console.log("[rayplot] buffer " + c.width + "x" + c.height +
+                    "  css " + Math.round(r.width) + "x" + Math.round(r.height) +
+                    "  dpr " + window.devicePixelRatio);
+      } catch (err) {
+        statusEl.textContent = "failed to start: " + err;
+        console.error(err);
+      }
+    }
+  };
+</script>
+<script src="rayplot.js"></script>
+</body>
+</html>

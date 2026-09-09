@@ -1,48 +1,35 @@
-.rayplot3D_env <- new.env(parent = emptyenv())
-.rayplot3D_env$running <- list()
-
-rayplot3D_scatter <- function(x, y, z, width = 800L, height = 600L,
-                             title = "rayplot3D", point_radius = 0.1, fps = 60) {
-
+# shared 3D open path, used by rayplot3D_scatter() and by rayplot() when a
+# ggplot carries an aes(z = ) point layer.
+open_scatter3d <- function(x, y, z, width, height, title, point_radius, fps) {
   x <- as.double(x)
   y <- as.double(y)
   z <- as.double(z)
+  stopifnot(
+    "x, y and z must have the same length" =
+      length(x) == length(y) && length(y) == length(z),
+    "need at least one point" = length(x) >= 1L
+  )
+  width  <- as.integer(width)
+  height <- as.integer(height)
+  stopifnot(
+    "width and height must be positive integers" =
+    !is.na(width) && !is.na(height) && width >= 1L && height >= 1L
+  )
+
+  close_active()  # raylib is single-window: close any existing window first
 
   handle <- .Call(
     "rayplot3D_open_", x, y, z,
-    as.integer(width), as.integer(height),
-    as.character(title), point_radius
+    width, height, as.character(title), as.double(point_radius)
   )
+  register_window(handle, "3d", fps, "rayplot3D_step_", "rayplot3D_close_")
+}
 
-  key <- .handle_key(handle)
-  .rayplot3D_env$running[[key]] <- TRUE
-  delay <- 1 / fps
-  step <- function() {
-    if (is.null(.rayplot3D_env$running[[key]])) return(invisible())
-    if (isTRUE(.Call("rayplot_should_close_", handle))) {
-      .Call("rayplot3D_close_", handle)
-      .rayplot3D_env$running[[key]] <- NULL
-      return(invisible())
-    }
-    .Call("rayplot3D_step_", handle)
-    later::later(step, delay)
-  }
-  later::later(step, 0)
-  invisible(handle)
+rayplot3D_scatter <- function(x, y, z, width = 800L, height = 600L,
+                              title = "rayplot3D", point_radius = 0.1, fps = 60) {
+  open_scatter3d(x, y, z, width, height, title, point_radius, fps)
 }
 
 rayplot3D_close <- function(handle = NULL) {
-  if (is.null(handle)) {
-    for (key in names(.rayplot3D_env$running)) {
-      .rayplot3D_env$running[[key]] <- NULL
-    }
-    invisible(return(NULL))
-  }
-  key <- .handle_key(handle)
-  .rayplot3D_env$running[[key]] <- NULL
-  .Call("rayplot3D_close_", handle)
-  invisible(NULL)
-}
-.handle_key <- function(handle) {
-  format(handle)
+  rayplot_close(handle)
 }

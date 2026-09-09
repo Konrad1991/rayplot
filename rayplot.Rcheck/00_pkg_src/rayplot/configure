@@ -1,0 +1,26 @@
+#!/bin/sh
+# Generate src/Makevars from src/Makevars.in for the host OS.
+# Keeps the checked-in makefile free of GNU-make extensions.
+
+OS=`uname -s 2>/dev/null || echo unknown`
+
+case "$OS" in
+  Darwin)
+    GLFW_DEF=""
+    GLFW_EXTRA="-x objective-c"
+    PKG_LIBS="-framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -framework CoreFoundation"
+    ;;
+  *)
+    # Linux / *BSD: GLFW 3.4 dlopen()s Xrandr/Xinerama/Xi/Xcursor, so -lX11 suffices.
+    GLFW_DEF="-D_GLFW_X11"
+    GLFW_EXTRA=""
+    PKG_LIBS="-lGL -lX11 -lm -lpthread -ldl -lrt"
+    ;;
+esac
+
+sed -e "s|@GLFW_DEF@|${GLFW_DEF}|g" \
+    -e "s|@GLFW_EXTRA@|${GLFW_EXTRA}|g" \
+    -e "s|@PKG_LIBS@|${PKG_LIBS}|g" \
+    src/Makevars.in > src/Makevars
+
+echo "* configure: wrote src/Makevars for ${OS}"

@@ -1,2 +1,55 @@
-PKG_CFLAGS = -I/usr/local/include
-PKG_LIBS   = -L/usr/local/lib -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+# rayplot builds a vendored copy of raylib 5.5 (src/raylib/) into the package,
+# so there is no external raylib dependency. Audio (raudio.c / miniaudio) is
+# intentionally not compiled.
+#
+# Tested: Linux (X11). The macOS branch follows raylib's own build flags but is
+# not exercised here -- report issues / PRs welcome. Windows: see Makevars.win.
+
+RAYLIB   = raylib
+GLFW_INC = $(RAYLIB)/external/glfw/include
+
+PKG_CPPFLAGS = -I. -I2D -I3D -I$(RAYLIB) -I$(GLFW_INC) \
+               -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33
+
+OBJECTS = init.o \
+  2D/rayplot_2D.o 2D/helper_2D.o 2D/layers_2D.o \
+  2D/lifecycle_2D.o 2D/view_2D.o 2D/text_2D.o \
+  3D/rayplot_3D.o \
+  $(RAYLIB)/rcore.o \
+  $(RAYLIB)/rshapes.o \
+  $(RAYLIB)/rtextures.o \
+  $(RAYLIB)/rtext.o \
+  $(RAYLIB)/rmodels.o \
+  $(RAYLIB)/utils.o \
+  $(RAYLIB)/rglfw.o
+
+UNAME := $(shell uname -s)
+
+ifeq ($(UNAME),Darwin)
+  # macOS: GLFW's Cocoa backend is Objective-C; rglfw.c must be compiled as such.
+  GLFW_EXTRA = -x objective-c
+  PKG_LIBS = -framework OpenGL -framework Cocoa -framework IOKit \
+             -framework CoreVideo -framework CoreFoundation
+else
+  # Linux / *BSD: X11 backend. GLFW 3.4 dlopen()s Xrandr/Xinerama/Xi/Xcursor,
+  # so only -lX11 is needed at link time. On Wayland desktops the window runs
+  # via XWayland.
+  #
+  # Native Wayland (no XWayland) is also possible with the bundled GLFW 3.4:
+  #   1. restore src/raylib/external/glfw/deps/wayland/ (9 protocol .xml files),
+  #   2. run `wayland-scanner` on each to generate the matching
+  #      *-client-protocol.h and *-client-protocol-code.h into src/raylib/,
+  #   3. add -D_GLFW_WAYLAND and build external/glfw/src/wl_*.c too.
+  # Needs libwayland-dev + libxkbcommon-dev. Left out to keep the build simple.
+  GLFW_EXTRA =
+  PKG_CPPFLAGS += -D_GLFW_X11
+  PKG_LIBS = -lGL -lX11 -lm -lpthread -ldl -lrt
+endif
+
+# Keep $(SHLIB) as the default target -- must come before the custom rule below.
+all: $(SHLIB)
+
+# rglfw.c needs a per-file flag on macOS; the rule matches the implicit one
+# elsewhere ($(GLFW_EXTRA) is empty).
+$(RAYLIB)/rglfw.o: $(RAYLIB)/rglfw.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(GLFW_EXTRA) -c $< -o $@

@@ -1,2 +1,10 @@
 ^LICENSE\.md$
 ^\.git$
+^development$
+^.*\.tar\.gz$
+^raylib-5\.5$
+^man/figures$
+^README\.md$
+\.o$
+\.so$
+\.dll$

@@ -1,0 +1,144 @@
+pkgname <- "rayplot"
+source(file.path(R.home("share"), "R", "examples-header.R"))
+options(warn = 1)
+library('rayplot')
+
+base::assign(".oldSearch", base::search(), pos = 'CheckExEnv')
+base::assign(".old_wd", base::getwd(), pos = 'CheckExEnv')
+cleanEx()
+nameEx("rayplot")
+### * rayplot
+
+flush(stderr()); flush(stdout())
+
+### Name: rayplot
+### Title: Interactive raylib plot from a ggplot object
+### Aliases: rayplot rayplot_close
+
+### ** Examples
+
+## Not run: 
+##D library(ggplot2)
+##D 
+##D ## scatter
+##D rayplot(ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point())
+##D 
+##D ## dodged boxplot + points, different palette per layer
+##D p <- ggplot(CO2, aes(
+##D     x = factor(conc), y = uptake,
+##D     group = interaction(conc, Treatment, Type)
+##D   )) +
+##D   geom_boxplot(aes(fill = interaction(Treatment, Type)),
+##D                position = position_dodge(width = 0.8)) +
+##D   geom_point(aes(colour = interaction(Treatment, Type)),
+##D              position = position_dodge(width = 0.8)) +
+##D   scale_fill_brewer(palette = "Set2") +
+##D   scale_colour_grey(start = 0.1, end = 0.5) +
+##D   theme(legend.position = "none")
+##D 
+##D h <- rayplot(p, title = "CO2 uptake")
+##D 
+##D ## keep working in the console, then:
+##D rayplot_close(h)
+## End(Not run)
+
+
+
+cleanEx()
+nameEx("rayplot3D_scatter")
+### * rayplot3D_scatter
+
+flush(stderr()); flush(stdout())
+
+### Name: rayplot3D_scatter
+### Title: Interactive 3D scatter plot (experimental)
+### Aliases: rayplot3D_scatter rayplot3D_close
+
+### ** Examples
+
+## Not run: 
+##D h <- rayplot3D_scatter(
+##D   CO2$conc, CO2$uptake, as.numeric(CO2$Treatment),
+##D   point_radius = 0.1
+##D )
+##D 
+##D rayplot3D_close(h)
+## End(Not run)
+
+
+
+cleanEx()
+nameEx("rayplotCanvas")
+### * rayplotCanvas
+
+flush(stderr()); flush(stdout())
+
+### Name: rayplotCanvas
+### Title: Embed a rayplot renderer in a Shiny app
+### Aliases: rayplotCanvas rayplot_send
+
+### ** Examples
+
+## Not run: 
+##D library(shiny)
+##D library(ggplot2)
+##D 
+##D ui <- fluidPage(
+##D   selectInput("pal", "Palette", c("Set2", "Dark2", "Paired")),
+##D   rayplotCanvas("plot", 900, 620)
+##D )
+##D 
+##D server <- function(input, output, session) {
+##D   observe({
+##D     p <- ggplot(CO2, aes(factor(conc), uptake,
+##D                          group = interaction(conc, Treatment, Type))) +
+##D       geom_boxplot(aes(fill = interaction(Treatment, Type)),
+##D                    position = position_dodge(width = 0.8)) +
+##D       geom_point(aes(colour = interaction(Treatment, Type)),
+##D                  position = position_dodge(width = 0.8)) +
+##D       scale_fill_brewer(palette = input$pal) +
+##D       theme(legend.position = "none")
+##D     rayplot_send(p, "plot", width = 900L, height = 620L)
+##D   })
+##D }
+##D 
+##D shinyApp(ui, server)
+## End(Not run)
+
+
+
+cleanEx()
+nameEx("rayplot_web")
+### * rayplot_web
+
+flush(stderr()); flush(stdout())
+
+### Name: rayplot_web
+### Title: Export a plot as a WebAssembly page
+### Aliases: rayplot_web rayplot_spec rayplot_serialize
+
+### ** Examples
+
+## Not run: 
+##D library(ggplot2)
+##D p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point()
+##D 
+##D rayplot_web(p, "mtcars.html")
+##D # then serve the folder and open mtcars.html, e.g.:
+##D #   python3 -m http.server
+## End(Not run)
+
+
+
+### * <FOOTER>
+###
+cleanEx()
+options(digits = 7L)
+base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
+grDevices::dev.off()
+###
+### Local variables: ***
+### mode: outline-minor ***
+### outline-regexp: "\\(> \\)?### [*]+" ***
+### End: ***
+quit('no')

@@ -1,0 +1,9 @@
+rayplot	rayplot
+rayplot3D_close	rayplot3D_scatter
+rayplot3D_scatter	rayplot3D_scatter
+rayplotCanvas	rayplotCanvas
+rayplot_close	rayplot
+rayplot_send	rayplotCanvas
+rayplot_serialize	rayplot_web
+rayplot_spec	rayplot_web
+rayplot_web	rayplot_web
