@@ -16,7 +16,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"rayplot_step_",         (DL_FUNC) &rayplot_step_,         1},
     {"rayplot_should_close_", (DL_FUNC) &rayplot_should_close_, 1},
     {"rayplot_close_",        (DL_FUNC) &rayplot_close_,        1},
-    {"rayplot3D_open_",       (DL_FUNC) &rayplot3D_open_,       7}, 
+    {"rayplot3D_open_",       (DL_FUNC) &rayplot3D_open_,       7},
     {"rayplot3D_step_",       (DL_FUNC) &rayplot3D_step_,       1},
     {"rayplot3D_close_",      (DL_FUNC) &rayplot3D_close_,      1},
     {NULL, NULL, 0}

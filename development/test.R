@@ -5,9 +5,9 @@ install.packages(".", types = "source", repos = NULL)
 library(ggplot2)
 library(rayplot)
 p <- ggplot(CO2, aes(
-    x = factor(conc), y = uptake,
-    group = interaction(conc, Treatment, Type)
-  )) +
+  x = factor(conc), y = uptake,
+  group = interaction(conc, Treatment, Type)
+)) +
   geom_boxplot(
     aes(fill = interaction(Treatment, Type)),
     position = position_dodge(width = 0.8)
@@ -22,10 +22,17 @@ p <- ggplot(CO2, aes(
 rayplot(p)
 rayplot_close()
 
-p <- ggplot(mtcars, aes(x = wt, y = mpg, z = hp)) +
-  geom_point(size = 2)
-rayplot(p)
 p <- ggplot(CO2,
-  aes(x = conc, y = uptake, z = Treatment)) +
+  aes(x = conc, y = uptake, z = Treatment, colour = Type)) +
   geom_point(size = 2)
 rayplot(p)
+rayplot_close()
+
+ms <- readRDS("development/data/ms_sample.rds")
+n_mz_bins <- 300
+mz_bin_width <- diff(range(ms$mz)) / n_mz_bins
+rt_bin_width <- min(diff(sort(unique(ms$retention_time)))) / 2
+p <- ggplot(ms, aes(x = mz, y = retention_time, z = intensity)) +
+  stat_summary_2d(binwidth = c(mz_bin_width, rt_bin_width), fun = max, drop = FALSE)
+rayplot(p)
+rayplot3D_close()
