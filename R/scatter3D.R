@@ -178,9 +178,11 @@ open_rayplot3d <- function(layers, width, height, title, fps,
 
   close_active()  # raylib is single-window: close any existing window first
 
+  font <- system.file("fonts", "Lato-Regular.ttf", package = "rayplot")
   handle <- .Call(
     "rayplot3D_open_", layers, width, height, as.character(title),
-    as.character(xlab), as.character(ylab), as.character(zlab)
+    as.character(xlab), as.character(ylab), as.character(zlab),
+    as.character(font)
   )
   register_window(handle, "3d", fps, "rayplot3D_step_", "rayplot3D_close_")
 }

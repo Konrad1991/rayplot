@@ -555,6 +555,7 @@ static void rayplot3D_finalize(SEXP ext) {
   RayPlot3D *p = (RayPlot3D *)R_ExternalPtrAddr(ext);
   if (p == NULL) return;
   if (p->is_open && IsWindowReady()) {
+    rayfont_unload(&p->font);
     CloseWindow();
   }
   p->is_open = false;
@@ -567,7 +568,7 @@ static void rayplot3D_finalize(SEXP ext) {
 }
 
 SEXP rayplot3D_open_(SEXP layers_, SEXP w_, SEXP h_, SEXP title_,
-                     SEXP xlab_, SEXP ylab_, SEXP zlab_) {
+                     SEXP xlab_, SEXP ylab_, SEXP zlab_, SEXP font_) {
   SetTraceLogLevel(LOG_ERROR);
   if (TYPEOF(layers_) != VECSXP) {
     error("rayplot3d: layers must be a list");
@@ -652,6 +653,11 @@ SEXP rayplot3D_open_(SEXP layers_, SEXP w_, SEXP h_, SEXP title_,
   InitWindow(p->width, p->height, CHAR(STRING_ELT(title_, 0)));
   SetTargetFPS(60);
   p->is_open = true;
+
+  const char *font_path =
+    (font_ != R_NilValue && TYPEOF(font_) == STRSXP && LENGTH(font_) >= 1)
+      ? CHAR(STRING_ELT(font_, 0)) : NULL;
+  rayfont_load(&p->font, font_path);
 
   UNPROTECT(1);
   return ext;
@@ -797,24 +803,24 @@ SEXP rayplot3D_step_(SEXP ext) {
     Vector2 xs = GetWorldToScreen((Vector3){ 12.5f, 0, 0 }, p->camera);
     Vector2 ys = GetWorldToScreen((Vector3){ 0, 12.5f, 0 }, p->camera);
     Vector2 zs = GetWorldToScreen((Vector3){ 0, 0, 12.5f }, p->camera);
-    DrawText(p->xlab, (int)xs.x, (int)xs.y, fs, RED);
-    DrawText(p->ylab, (int)ys.x, (int)ys.y, fs, DARKGREEN);
-    DrawText(p->zlab, (int)zs.x, (int)zs.y, fs, BLUE);
+    ray_text(&p->font, p->xlab, xs.x, xs.y, fs, RED);
+    ray_text(&p->font, p->ylab, ys.x, ys.y, fs, DARKGREEN);
+    ray_text(&p->font, p->zlab, zs.x, zs.y, fs, BLUE);
   }
 
-  DrawText("Left-Click + Drag: Orbit  |  Right-Click + Drag: Pan  |  Scroll Wheel: Zoom", 15, 15, 16, DARKGRAY);
+  ray_text(&p->font, "Left-Click + Drag: Orbit  |  Right-Click + Drag: Pan  |  Scroll Wheel: Zoom", 15, 15, 16, DARKGRAY);
 
   if (collision_detected) {
     const float fs = 16.0f;
     const float pad = 6.0f;
-    Vector2 ts = MeasureTextEx(GetFontDefault(), tooltip_str, fs, 2.0f);
+    Vector2 ts = ray_measure(&p->font, tooltip_str, fs);
     float tx = mouse_pos.x + 15.0f;
     float ty = mouse_pos.y + 4.0f;
     if (tx + ts.x + pad > p->width) tx = mouse_pos.x - 15.0f - ts.x;
     if (ty + ts.y + pad > p->height) ty = p->height - ts.y - pad;
     Rectangle card = { tx - pad, ty - pad, ts.x + 2.0f * pad, ts.y + 2.0f * pad };
     DrawRectangleRounded(card, 0.25f, 6, COL_TIP_BG3D);
-    DrawTextEx(GetFontDefault(), tooltip_str, (Vector2){ tx, ty }, fs, 2.0f, COL_TIP_TEXT3D);
+    ray_text(&p->font, tooltip_str, tx, ty, fs, COL_TIP_TEXT3D);
   }
 
   EndDrawing();
@@ -825,6 +831,7 @@ SEXP rayplot3D_close_(SEXP ext) {
   RayPlot3D *p = (RayPlot3D *) R_ExternalPtrAddr(ext);
   if (p == NULL) return R_NilValue;
   p->is_open = false;
+  rayfont_unload(&p->font);
   if (IsWindowReady()) CloseWindow();
   return R_NilValue;
 }

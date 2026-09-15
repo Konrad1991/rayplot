@@ -22,17 +22,15 @@ p <- ggplot(CO2, aes(
 rayplot(p)
 rayplot_close()
 
-p <- ggplot(CO2,
-  aes(x = conc, y = uptake, z = Treatment, colour = Type)) +
-  geom_point(size = 2)
+rosenbrock <- function(x, y) (1 - x)^2 + 100*(y - x^2)^2
+grid <- expand.grid(
+  x = seq(-2, 2, length.out = 500),
+  y = seq(-2, 2, length.out = 500)
+)
+grid$error <- rosenbrock(grid$x, grid$y)
+p <- ggplot(grid,
+  aes(x = x, y = y,
+    z = log1p(error), fill = log1p(error))) +
+  geom_tile() +
+  scale_fill_viridis_c()
 rayplot(p)
-rayplot_close()
-
-ms <- readRDS("development/data/ms_sample.rds")
-n_mz_bins <- 300
-mz_bin_width <- diff(range(ms$mz)) / n_mz_bins
-rt_bin_width <- min(diff(sort(unique(ms$retention_time)))) / 2
-p <- ggplot(ms, aes(x = mz, y = retention_time, z = intensity)) +
-  stat_summary_2d(binwidth = c(mz_bin_width, rt_bin_width), fun = max, drop = FALSE)
-rayplot(p)
-rayplot3D_close()

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "raylib.h"
+#include "text_2D.h"
 
 typedef enum {
   LAYER3D_SCATTER,
@@ -81,6 +82,8 @@ typedef struct {
 
   RayLayer3D* layers;
   int n_layers;
+
+  RayFont font; /* optional TTF, falls back to raylib's built-in bitmap font */
 
   /* axis titles for the visual X (right)/Y (up)/Z (depth) axes, drawn near
    * the reference axis lines in the render loop. */

@@ -44,9 +44,17 @@ rayplot <- function(p, ..., width = 800L, height = 600L, title = "rayplot", fps 
   #   rayplot(scatter_layer(...), ..) -> layer specs passed straight through
   layers <- if (inherits(p, "ggplot")) resolve_layers(p) else c(list(p), list(...))
 
-  # a ggplot with an aes(z = ) point layer, or a geom_tile()/geom_raster()
-  # 3D surface layer, resolves to a single 3D spec
-  if (length(layers) == 1L && layers[[1L]]$type %in% c("scatter3d", "line3d", "area3d", "surface3d")) {
+  # a ggplot with an aes(z = ) point/line/area layer, or a geom_tile()/
+  # geom_raster() 3D surface layer, resolves to one or more 3D specs (a
+  # grouped geom_line()/geom_area() gives one line3d/area3d layer per group,
+  # e.g. one curtain per LC/GC-MS scan)
+  is_3d_layer <- length(layers) >= 1L && all(vapply(
+    layers, function(l) {
+      is.list(l) && is.character(l$type) && length(l$type) == 1L &&
+        l$type %in% c("scatter3d", "line3d", "area3d", "surface3d")
+    }, logical(1L)
+  ))
+  if (is_3d_layer) {
     lbl <- attr(layers, "labels3d")
     if (is.null(lbl)) lbl <- list(x = "x", y = "y", z = "z")
     return(open_rayplot3d(layers, width, height, title, fps, lbl$x, lbl$y, lbl$z))

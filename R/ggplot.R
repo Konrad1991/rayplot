@@ -5,11 +5,20 @@ resolve_layers <- function(p) {
   n <- length(data)
   stopifnot("rayplot() needs at least one layer" = n >= 1L)
 
-  # 3D dispatch: a point layer carrying a usable z aesthetic, or a
-  # tile/raster layer carrying a z (or a stat-produced `value`, e.g. from
-  # stat_summary_2d()) switches the whole plot to the orbit-camera renderer.
+  # 3D dispatch: a point layer carrying a usable z aesthetic, a line/area
+  # layer carrying a z, or a tile/raster layer carrying a z (or a
+  # stat-produced `value`, e.g. from stat_summary_2d()) switches the whole
+  # plot to the orbit-camera renderer.
   is_3d_point <- vapply(seq_len(n), function(i) {
     inherits(glayers[[i]]$geom, "GeomPoint") &&
+      !is.null(data[[i]]$z) && any(is.finite(data[[i]]$z))
+  }, logical(1L))
+  is_3d_line <- vapply(seq_len(n), function(i) {
+    inherits(glayers[[i]]$geom, "GeomLine") &&
+      !is.null(data[[i]]$z) && any(is.finite(data[[i]]$z))
+  }, logical(1L))
+  is_3d_area <- vapply(seq_len(n), function(i) {
+    inherits(glayers[[i]]$geom, "GeomArea") &&
       !is.null(data[[i]]$z) && any(is.finite(data[[i]]$z))
   }, logical(1L))
   is_3d_surface <- vapply(seq_len(n), function(i) {
@@ -17,12 +26,12 @@ resolve_layers <- function(p) {
       ((!is.null(data[[i]]$z) && any(is.finite(data[[i]]$z))) ||
        (!is.null(data[[i]]$value) && any(is.finite(data[[i]]$value))))
   }, logical(1L))
-  if (any(is_3d_point) || any(is_3d_surface)) {
+  if (any(is_3d_point) || any(is_3d_line) || any(is_3d_area) || any(is_3d_surface)) {
     if (n != 1L) {
       stop(
-        "rayplot: a 3D layer (aes(z = ) on geom_point, or geom_tile()/",
-        "geom_raster() with a z or stat-produced `value`) must be the ",
-        "plot's only layer",
+        "rayplot: a 3D layer (aes(z = ) on geom_point()/geom_line()/",
+        "geom_area(), or geom_tile()/geom_raster() with a z or ",
+        "stat-produced `value`) must be the plot's only layer",
         call. = FALSE
       )
     }
@@ -30,6 +39,37 @@ resolve_layers <- function(p) {
     if (is_3d_point[[1L]]) {
       out <- list(translate_point3d(data[[1L]]))
       # visual X/Y(up)/Z(depth) match ggplot's x/y/z directly for points
+      attr(out, "labels3d") <- list(x = lbl$x %||% "x", y = lbl$y %||% "y", z = lbl$z %||% "z")
+      return(out)
+    }
+    if (is_3d_line[[1L]]) {
+      # one line3d layer per group, e.g. aes(group = scan_id) draws each
+      # trace separately instead of connecting all points into one polyline
+      out <- translate_line3d_groups(data[[1L]])
+      attr(out, "labels3d") <- list(x = lbl$x %||% "x", y = lbl$y %||% "y", z = lbl$z %||% "z")
+      return(out)
+    }
+    if (is_3d_area[[1L]]) {
+      # geom_area()'s defaults (stat = "align", position = "stack") are for
+      # 2D stacked area charts sharing one x axis: "align" interpolates
+      # extra x points onto the union of every group's x values and "stack"
+      # offsets each group's ymin/ymax on top of the others -- both corrupt
+      # independent per-z-depth curtains, so require the caller to disable
+      # them explicitly rather than silently drawing a wrong shape.
+      if (!inherits(glayers[[1L]]$stat, "StatIdentity") ||
+          !inherits(glayers[[1L]]$position, "PositionIdentity")) {
+        stop(
+          "rayplot: a 3D geom_area() layer must use ",
+          "geom_area(stat = \"identity\", position = \"identity\") -- the ",
+          "default align/stack behaviour is for 2D stacked area charts and ",
+          "corrupts independent per-z-depth curtains",
+          call. = FALSE
+        )
+      }
+      # one area3d "curtain" per group -- aes(x=, y=, z=, group=) gives a
+      # waterfall of filled ribbons, e.g. LC/GC-MS scans stacked by
+      # retention time (see rayplot3D_area() for the single-trace version)
+      out <- translate_area3d_groups(data[[1L]])
       attr(out, "labels3d") <- list(x = lbl$x %||% "x", y = lbl$y %||% "y", z = lbl$z %||% "z")
       return(out)
     }
@@ -70,6 +110,61 @@ translate_point3d <- function(d) {
     colours = if (is.null(d$colour)) NULL else as_hex6(d$colour[keep]),
     point_radius = if (is.na(size) || size <= 0) 0.15 else 0.1 * size
   )
+}
+
+# geom_line() built data with a z column -> one line3d spec per group, so
+# aes(group = ) draws separate traces instead of one connect-the-dots line
+# across all of them. Points within a group are sorted by x, matching how a
+# 2D geom_line() connects points left to right.
+translate_line3d_groups <- function(d) {
+  keep <- is.finite(d$x) & is.finite(d$y) & is.finite(d$z)
+  d <- d[keep, , drop = FALSE]
+  if (!nrow(d)) stop("rayplot: geom_line() 3D layer has no finite x/y/z", call. = FALSE)
+  groups <- split(seq_len(nrow(d)), d$group)
+  unname(lapply(groups, function(idx) {
+    g <- d[idx[order(d$x[idx])], , drop = FALSE]
+    list(
+      type = "line3d",
+      x = as.double(g$x), y = as.double(g$y), z = as.double(g$z),
+      colour = if (is.null(g$colour) || is.na(g$colour[[1L]])) NULL else as_hex6(g$colour[[1L]])
+    )
+  }))
+}
+
+# geom_area() built data with a z column -> one area3d "curtain" per group
+# (base_y from that group's ymin, colour from its resolved fill), so
+# aes(x = mz, y = intensity, z = retention_time, group = scan_id) gives a
+# waterfall of filled ribbons, one per MS scan. Requires
+# geom_area(stat = "identity", position = "identity") -- geom_area()'s
+# defaults (stat = "align", position = "stack") are meant for 2D stacked
+# area charts sharing one x axis: "align" interpolates extra x points onto
+# the union of every group's x values, and "stack" offsets each group's
+# ymin/ymax on top of the others, both of which corrupt independent
+# per-z-depth curtains.
+translate_area3d_groups <- function(d) {
+  keep <- is.finite(d$x) & is.finite(d$y) & is.finite(d$z)
+  d <- d[keep, , drop = FALSE]
+  if (!nrow(d)) stop("rayplot: geom_area() 3D layer has no finite x/y/z", call. = FALSE)
+  groups <- split(seq_len(nrow(d)), d$group)
+  unname(lapply(groups, function(idx) {
+    g <- d[idx[order(d$x[idx])], , drop = FALSE]
+    if (anyDuplicated(g$x)) {
+      stop(
+        "rayplot: geom_area() 3D layer has duplicated x within a group -- ",
+        "use geom_area(stat = \"identity\", position = \"identity\") so ",
+        "ggplot2 doesn't align/stack the groups onto a shared x grid",
+        call. = FALSE
+      )
+    }
+    alpha <- if (is.null(g$alpha) || is.na(g$alpha[[1L]])) 0.35 else as.double(g$alpha[[1L]])
+    list(
+      type = "area3d",
+      x = as.double(g$x), y = as.double(g$ymax), z = as.double(g$z),
+      base_y = as.double(g$ymin[[1L]]),
+      colour = if (is.null(g$fill)) NULL else as_hex6(g$fill[[1L]]),
+      alpha = alpha
+    )
+  }))
 }
 
 # geom_tile()/geom_raster() built data with a z (or stat-produced `value`)

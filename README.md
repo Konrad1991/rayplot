@@ -86,14 +86,26 @@ Anything else raises a clear error.
 
 ![rayplot 3D demo](man/figures/rayplot-3d-demo.gif)
 
-**From a ggplot:** map a `z` aesthetic on a `geom_point` layer and `rayplot()`
-opens the orbit-camera 3D renderer instead of the 2D window.
+**From a ggplot:** map a `z` aesthetic and `rayplot()` opens the orbit-camera
+3D renderer instead of the 2D window. `geom_point` gives a scatter,
+`geom_line`/`geom_area` give one trace/curtain per `group` (e.g. a waterfall
+of stacked slices), and `geom_tile`/`geom_raster` give a continuous height
+surface over a complete x/y grid.
+
+A relative-error surface from curve fitting is a good real-world example —
+here the classic Rosenbrock function stands in for a fit's error landscape
+over two parameters:
 
 ```r
-p <- ggplot(mtcars, aes(x = wt, y = mpg, z = hp)) +
-  geom_point(size = 2)
+rosenbrock <- function(x, y) (1 - x)^2 + 100 * (y - x^2)^2
+grid <- expand.grid(x = seq(-2, 2, length.out = 500), y = seq(-2, 2, length.out = 500))
+grid$error <- rosenbrock(grid$x, grid$y)
 
-rayplot(p)                 # 3D scatter
+p <- ggplot(grid, aes(x = x, y = y, z = log1p(error), fill = log1p(error))) +
+  geom_tile() +
+  scale_fill_viridis_c()
+
+rayplot(p)                 # 3D surface, 250k cells, still smooth
 ```
 
 **Direct:** pass `x`, `y`, `z` vectors (more knobs, e.g. `point_radius`):
@@ -106,9 +118,13 @@ h <- rayplot3D_scatter(
 rayplot3D_close(h)         # or rayplot_close() for the open window
 ```
 
-* **left-drag** orbit, **right-drag** pan, **scroll wheel** zoom.
-* The 3D view is scatter-only: colour is ignored (all points draw the same),
-  point size comes from the `size` aesthetic. `geom_boxplot` etc. stay 2D.
+* **left-drag** orbit, **right-drag** pan, **scroll wheel** zoom, **hover** a
+  point / trace / surface cell for a tooltip.
+* `fill`/`z` must be mapped to the same value to colour a surface by height
+  (`aes(z = error, fill = error)`) -- otherwise it draws in a flat colour.
+* `geom_area`'s 3D curtain needs `stat = "identity", position = "identity"`;
+  its defaults are built for 2D stacked area charts and will distort
+  independent per-`z` curtains. `geom_boxplot` etc. stay 2D.
 
 ## Browser / WebAssembly (experimental)
 
